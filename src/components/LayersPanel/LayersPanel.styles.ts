@@ -1,8 +1,6 @@
 import type { SxProps, Theme } from "@mui/material";
 
 export const layersContainerStyles: SxProps<Theme> = {
-  width: 240,
-  p: 2,
   bgcolor: "#1e1c1f",
   color: "#fff",
   height: "100%",

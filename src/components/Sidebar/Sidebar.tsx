@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { container } from "../../ioc";
 import { TYPES, type ToolType } from "../../types";
@@ -17,12 +17,45 @@ import { Square, Circle, PanTool } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { drawerStyles, iconStyles } from "./Sidebar.styles";
 
-const DRAWER_WIDTH = 240;
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 450;
 
 const Sidebar: React.FC = observer(() => {
   const { t } = useTranslation();
+  const [width, setWidth] = useState(240);
+  const [isResizing, setIsResizing] = useState(false);
 
   const editorStore = container.get<EditorStore>(TYPES.EditorStore);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      if (isResizing) {
+        const newWidth = e.clientX;
+        if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
+          setWidth(newWidth);
+        }
+      }
+    },
+    [isResizing],
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   const menuItems = [
     { id: "select" as ToolType, text: t("tools.select"), icon: <PanTool /> },
@@ -31,9 +64,16 @@ const Sidebar: React.FC = observer(() => {
   ];
 
   return (
-    <Drawer variant="permanent" sx={drawerStyles(DRAWER_WIDTH)}>
+    <Drawer
+      variant="permanent"
+      sx={{
+        ...drawerStyles(width),
+        position: "relative",
+        transition: isResizing ? "none" : "width 0.2s",
+      }}
+    >
       <Toolbar />
-      <Box sx={{ overflow: "auto" }}>
+      <Box sx={{ overflow: "hidden" }}>
         <List>
           {menuItems.map((item) => (
             <ListItem key={item.id} disablePadding>
@@ -42,12 +82,33 @@ const Sidebar: React.FC = observer(() => {
                 onClick={() => editorStore.setTool(item.id)}
               >
                 <ListItemIcon sx={iconStyles}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
+                <ListItemText
+                  primary={item.text}
+                  sx={{ opacity: width < 120 ? 0 : 1 }}
+                />
               </ListItemButton>
             </ListItem>
           ))}
         </List>
       </Box>
+
+      <Box
+        onMouseDown={startResizing}
+        sx={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: "4px",
+          height: "100%",
+          cursor: "col-resize",
+          bgcolor: isResizing ? "primary.main" : "transparent",
+          "&:hover": {
+            bgcolor: "primary.light",
+          },
+          transition: "background-color 0.2s",
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+        }}
+      />
     </Drawer>
   );
 });
